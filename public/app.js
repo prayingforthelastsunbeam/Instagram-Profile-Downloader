@@ -69,6 +69,16 @@ document.addEventListener('DOMContentLoaded', () => {
         gallerySection.classList.remove('hidden');
     }
 
+    // Local Storage for Cookies
+    const savedCookies = localStorage.getItem('ig_cookies');
+    if (savedCookies) {
+        cookieInput.value = savedCookies;
+    }
+
+    cookieInput.addEventListener('input', () => {
+        localStorage.setItem('ig_cookies', cookieInput.value);
+    });
+
     // Settings Modal Listeners
     settingsBtn.addEventListener('click', () => {
         settingsModal.classList.remove('hidden');
