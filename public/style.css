@@ -66,6 +66,7 @@ header h1 {
     margin-bottom: 10px;
     background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -319,7 +320,6 @@ textarea:focus, input[type="text"]:focus {
     aspect-ratio: 1;
     background: rgba(0,0,0,0.3);
     border: 1px solid var(--glass-border);
-    group: hover;
 }
 
 .media-item img, .media-item video {
