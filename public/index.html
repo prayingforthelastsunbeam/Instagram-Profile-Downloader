@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram Advanced Scraper</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="background-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>InstaScrape <span class="badge">Pro</span></h1>
+            <p>Advanced Headless Media Downloader</p>
+        </header>
+
+        <main>
+            <div class="glass-card config-section">
+                <h2>1. Configuration</h2>
+                <div class="input-group">
+                    <label for="cookieInput">Paste your cookie.json content (Optional if public)</label>
+                    <textarea id="cookieInput" placeholder='[{"domain": ".instagram.com", "name": "sessionid", "value": "..."}]'></textarea>
+                </div>
+            </div>
+
+            <div class="glass-card target-section">
+                <h2>2. Target Profile</h2>
+                <div class="input-group row">
+                    <input type="text" id="urlInput" placeholder="https://www.instagram.com/username/">
+                    <button id="startBtn" class="primary-btn">Start Scraping</button>
+                </div>
+            </div>
+
+            <div id="progressSection" class="glass-card console-section hidden">
+                <div class="console-header">
+                    <div class="dots"><span></span><span></span><span></span></div>
+                    <h3>Terminal Output</h3>
+                </div>
+                <div id="consoleOutput" class="console-body">
+                    <!-- Logs injected here -->
+                </div>
+                
+                <div id="resultSection" class="hidden result-actions">
+                    <a id="downloadZipBtn" class="primary-btn pulse" href="#" download>Download All (ZIP)</a>
+                </div>
+            </div>
+
+            <div id="gallerySection" class="glass-card gallery-section hidden">
+                <h2>Extracted Media</h2>
+                <div id="galleryGrid" class="gallery-grid">
+                    <!-- Media injected here -->
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
