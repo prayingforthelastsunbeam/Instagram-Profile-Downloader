@@ -18,19 +18,27 @@
         <header>
             <h1>InstaScrape <span class="badge">Pro</span></h1>
             <p>Advanced Headless Media Downloader</p>
+            <button id="settingsBtn" class="settings-btn" title="Configuration">⚙️ Settings</button>
         </header>
 
         <main>
-            <div class="glass-card config-section">
-                <h2>1. Configuration</h2>
-                <div class="input-group">
-                    <label for="cookieInput">Paste your cookie.json content (Optional if public)</label>
-                    <textarea id="cookieInput" placeholder='[{"domain": ".instagram.com", "name": "sessionid", "value": "..."}]'></textarea>
+            <!-- Modal Overlay for Settings -->
+            <div id="settingsModal" class="modal-overlay hidden">
+                <div class="glass-card modal config-section">
+                    <div class="modal-header">
+                        <h2>Configuration</h2>
+                        <button id="closeSettingsBtn" class="close-btn">&times;</button>
+                    </div>
+                    <p class="modal-desc">Authentication is required for private profiles or age-restricted content.</p>
+                    <div class="input-group">
+                        <label for="cookieInput">Paste your cookie.json content</label>
+                        <textarea id="cookieInput" placeholder='[{"domain": ".instagram.com", "name": "sessionid", "value": "..."}]'></textarea>
+                    </div>
                 </div>
             </div>
 
             <div class="glass-card target-section">
-                <h2>2. Target Profile</h2>
+                <h2>Target Profile</h2>
                 <div class="input-group row">
                     <input type="text" id="urlInput" placeholder="https://www.instagram.com/username/">
                     <button id="startBtn" class="primary-btn">Start Scraping</button>

@@ -3,6 +3,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlInput = document.getElementById('urlInput');
     const cookieInput = document.getElementById('cookieInput');
     
+    // Modal Elements
+    const settingsBtn = document.getElementById('settingsBtn');
+    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const settingsModal = document.getElementById('settingsModal');
+    
     const progressSection = document.getElementById('progressSection');
     const consoleOutput = document.getElementById('consoleOutput');
     const resultSection = document.getElementById('resultSection');
@@ -59,6 +64,22 @@ document.addEventListener('DOMContentLoaded', () => {
         
         gallerySection.classList.remove('hidden');
     }
+
+    // Modal Listeners
+    settingsBtn.addEventListener('click', () => {
+        settingsModal.classList.remove('hidden');
+    });
+
+    closeSettingsBtn.addEventListener('click', () => {
+        settingsModal.classList.add('hidden');
+    });
+    
+    // Close modal when clicking outside
+    settingsModal.addEventListener('click', (e) => {
+        if (e.target === settingsModal) {
+            settingsModal.classList.add('hidden');
+        }
+    });
 
     startBtn.addEventListener('click', async () => {
         const url = urlInput.value.trim();
