@@ -25,7 +25,6 @@ function loadCookies(cookieFile = 'cookie.json') {
       const cookieData = fs.readFileSync(cookieFile, 'utf8');
       const cookies = JSON.parse(cookieData);
       
-      // Normalize cookies for Puppeteer
       const normalizedCookies = cookies.map(cookie => {
         const normalized = {
           name: cookie.name,
@@ -37,20 +36,13 @@ function loadCookies(cookieFile = 'cookie.json') {
           secure: cookie.secure || false
         };
         
-        // Fix sameSite value - Puppeteer only accepts 'Strict', 'Lax', or 'None'
         if (cookie.sameSite) {
           const sameSite = cookie.sameSite.toLowerCase();
-          if (sameSite === 'no_restriction') {
-            normalized.sameSite = 'None';
-          } else if (sameSite === 'lax') {
-            normalized.sameSite = 'Lax';
-          } else if (sameSite === 'strict') {
-            normalized.sameSite = 'Strict';
-          } else {
-            normalized.sameSite = 'Lax'; // Default fallback
-          }
+          if (sameSite === 'no_restriction') normalized.sameSite = 'None';
+          else if (sameSite === 'lax') normalized.sameSite = 'Lax';
+          else if (sameSite === 'strict') normalized.sameSite = 'Strict';
+          else normalized.sameSite = 'Lax'; 
         }
-        
         return normalized;
       });
       
@@ -82,305 +74,43 @@ function filterHighResUrls(urls) {
   return urls.filter(url => !lowResPatterns.some(pattern => pattern.test(url)));
 }
 
-// Scroll to load all posts
-async function scrollToLoadPosts(page, maxScrolls = 20) {
-  console.log('🔄 Scrolling to load all posts...');
-  let previousHeight = await page.evaluate(() => document.body.scrollHeight);
-  let scrollAttempts = 0;
+// Recursively find all media URLs in a JSON object
+function extractUrlsFromJson(obj, urlsArray) {
+  if (!obj) return;
+  if (typeof obj === 'string') {
+    try {
+      if (obj.trim().startsWith('{') || obj.trim().startsWith('[')) {
+        const parsed = JSON.parse(obj);
+        extractUrlsFromJson(parsed, urlsArray);
+      }
+    } catch(e) {}
+    return;
+  }
   
-  for (let i = 0; i < maxScrolls; i++) {
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    
-    const newHeight = await page.evaluate(() => document.body.scrollHeight);
-    if (newHeight === previousHeight) {
-      scrollAttempts++;
-      if (scrollAttempts >= 3) {
-        console.log('🛑 Reached end of posts.');
-        break;
-      }
-    } else {
-      scrollAttempts = 0;
-    }
-    previousHeight = newHeight;
-    console.log(`📜 Scrolled ${i + 1} time(s).`);
+  if (Array.isArray(obj)) {
+    obj.forEach(item => extractUrlsFromJson(item, urlsArray));
+    return;
   }
-}
-
-// Extract all post URLs
-async function extractPostLinks(page) {
-  return await page.evaluate(() => {
-    const links = new Set();
-    document.querySelectorAll('a[href*="/p/"], a[href*="/reel/"]').forEach((a) => {
-      const href = a.href;
-      if (href.includes('/p/') || href.includes('/reel/')) {
-        links.add(href.split('?')[0]); // Remove query parameters
-      }
-    });
-    return Array.from(links);
-  });
-}
-
-// Extract media from a single post page
-async function extractMediaFromPost(page, postUrl) {
-  try {
-    console.log(`📸 Visiting post: ${postUrl}`);
-    await page.goto(postUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for lazy loading
+  
+  if (typeof obj === 'object') {
+    if (obj.display_url) urlsArray.push({ url: obj.display_url, type: 'image' });
+    if (obj.video_url) urlsArray.push({ url: obj.video_url, type: 'video' });
     
-    const mediaUrls = await page.evaluate(() => {
-      const urls = [];
-
-      // Extract all images
-      document.querySelectorAll('img').forEach(img => {
-        const src = img.getAttribute('src') || img.src;
-        if (src && !src.includes('avatar') && !src.includes('profile') && !src.startsWith('blob:')) {
-          urls.push({ url: src, type: 'image' });
-        }
-        
-        // Check srcset for higher resolution images
-        const srcset = img.getAttribute('srcset');
-        if (srcset) {
-          srcset.split(',').forEach(part => {
-            const url = part.trim().split(' ')[0];
-            if (url && !url.includes('avatar') && !url.includes('profile') && !url.startsWith('blob:')) {
-              urls.push({ url: url, type: 'image' });
-            }
-          });
-        }
-      });
-
-      // Extract all videos - improved extraction, skip blob URLs
-      document.querySelectorAll('video').forEach(video => {
-        // Try src attribute first
-        const src = video.getAttribute('src') || video.src;
-        if (src && !src.startsWith('blob:')) {
-          urls.push({ url: src, type: 'video' });
-        }
-        
-        // Check source children
-        video.querySelectorAll('source').forEach(source => {
-          const sourceSrc = source.getAttribute('src') || source.src;
-          if (sourceSrc && !sourceSrc.startsWith('blob:')) {
-            urls.push({ url: sourceSrc, type: 'video' });
-          }
-        });
-      });
-
-      // Also check for video URLs in page scripts and meta tags
-      const scripts = Array.from(document.querySelectorAll('script'));
-      scripts.forEach(script => {
-        const content = script.textContent || '';
-        // Look for video URLs in JSON data - more comprehensive patterns
-        const videoMatches = content.match(/"video_url":"(https:\/\/[^"]+\.mp4[^"]*)"/g);
-        if (videoMatches) {
-          videoMatches.forEach(match => {
-            const url = match.match(/"video_url":"([^"]+)"/)[1];
-            if (url && !url.includes('profile') && !url.includes('avatar')) {
-              urls.push({ url: url, type: 'video' });
-            }
-          });
-        }
-        
-        // Alternative pattern for video URLs
-        const altMatches = content.match(/https:\/\/[^"'\s]+\.mp4[^"'\s]*/g);
-        if (altMatches) {
-          altMatches.forEach(url => {
-            if (!url.includes('profile') && !url.includes('avatar') && !url.startsWith('blob:')) {
-              urls.push({ url: url, type: 'video' });
-            }
-          });
-        }
-      });
-
-      return urls;
-    });
-    
-    const videos = mediaUrls.filter(m => m.type === 'video').length;
-    const images = mediaUrls.filter(m => m.type === 'image').length;
-    console.log(`  ✅ Found ${images} images and ${videos} videos`);
-    return mediaUrls;
-  } catch (err) {
-    console.error(`  ❌ Error extracting media from ${postUrl}:`, err.message);
-    return [];
-  }
-}
-
-// Extract stories (currently available)
-async function extractStories(page, username) {
-  try {
-    console.log('\n📖 Checking for stories...');
-    await page.goto(`https://www.instagram.com/stories/${username}/`, { waitUntil: 'networkidle2', timeout: 30000 });
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const storyUrls = await page.evaluate(() => {
-      const urls = [];
-      
-      // Extract story images - skip blob URLs
-      document.querySelectorAll('img').forEach(img => {
-        const src = img.getAttribute('src') || img.src;
-        if (src && !src.includes('avatar') && !src.includes('profile') && !src.includes('150x150') && !src.startsWith('blob:')) {
-          urls.push({ url: src, type: 'story-image' });
-        }
-      });
-      
-      // Extract story videos - skip blob URLs
-      document.querySelectorAll('video').forEach(video => {
-        const src = video.getAttribute('src') || video.src;
-        if (src && !src.startsWith('blob:')) {
-          urls.push({ url: src, type: 'story-video' });
-        }
-        
-        video.querySelectorAll('source').forEach(source => {
-          const sourceSrc = source.getAttribute('src') || source.src;
-          if (sourceSrc && !sourceSrc.startsWith('blob:')) {
-            urls.push({ url: sourceSrc, type: 'story-video' });
-          }
-        });
-      });
-      
-      // Check scripts for video URLs
-      const scripts = Array.from(document.querySelectorAll('script'));
-      scripts.forEach(script => {
-        const content = script.textContent || '';
-        // Look for video_url pattern
-        const videoMatches = content.match(/"video_url":"(https:\/\/[^"]+\.mp4[^"]*)"/g);
-        if (videoMatches) {
-          videoMatches.forEach(match => {
-            const url = match.match(/"video_url":"([^"]+)"/)[1];
-            if (url && !url.startsWith('blob:')) {
-              urls.push({ url: url, type: 'story-video' });
-            }
-          });
-        }
-        
-        // Alternative pattern
-        const altMatches = content.match(/https:\/\/[^"'\s]+\.mp4[^"'\s]*/g);
-        if (altMatches) {
-          altMatches.forEach(url => {
-            if (!url.startsWith('blob:')) {
-              urls.push({ url: url, type: 'story-video' });
-            }
-          });
-        }
-      });
-      
-      return urls;
-    });
-    
-    if (storyUrls.length > 0) {
-      console.log(`✅ Found ${storyUrls.length} story items`);
-    } else {
-      console.log('ℹ️  No active stories found');
+    // image_versions2 is used in many API endpoints
+    if (obj.image_versions2 && obj.image_versions2.candidates) {
+      const best = obj.image_versions2.candidates[0]; // usually the highest resolution
+      if (best && best.url) urlsArray.push({ url: best.url, type: 'image' });
     }
     
-    return storyUrls;
-  } catch (err) {
-    console.log('ℹ️  No stories available or error accessing stories');
-    return [];
-  }
-}
+    // video_versions
+    if (obj.video_versions && Array.isArray(obj.video_versions)) {
+      const best = obj.video_versions[0];
+      if (best && best.url) urlsArray.push({ url: best.url, type: 'video' });
+    }
 
-// Extract highlights
-async function extractHighlights(page, username) {
-  try {
-    console.log('\n⭐ Checking for highlights...');
-    await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'networkidle2', timeout: 30000 });
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Find highlight URLs
-    const highlightLinks = await page.evaluate(() => {
-      const links = [];
-      document.querySelectorAll('a[href*="/stories/highlights/"]').forEach(a => {
-        links.push(a.href);
-      });
-      return [...new Set(links)]; // Remove duplicates
-    });
-    
-    if (highlightLinks.length === 0) {
-      console.log('ℹ️  No highlights found');
-      return [];
+    for (let key in obj) {
+      extractUrlsFromJson(obj[key], urlsArray);
     }
-    
-    console.log(`📂 Found ${highlightLinks.length} highlight folders`);
-    
-    let allHighlightUrls = [];
-    
-    for (let i = 0; i < highlightLinks.length; i++) {
-      const link = highlightLinks[i];
-      console.log(`  [${i + 1}/${highlightLinks.length}] Extracting highlight: ${link}`);
-      
-      try {
-        await page.goto(link, { waitUntil: 'networkidle2', timeout: 30000 });
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        const mediaUrls = await page.evaluate(() => {
-          const urls = [];
-          
-          // Extract images - skip blob URLs
-          document.querySelectorAll('img').forEach(img => {
-            const src = img.getAttribute('src') || img.src;
-            if (src && !src.includes('avatar') && !src.includes('profile') && !src.includes('150x150') && !src.startsWith('blob:')) {
-              urls.push({ url: src, type: 'highlight-image' });
-            }
-          });
-          
-          // Extract videos - skip blob URLs
-          document.querySelectorAll('video').forEach(video => {
-            const src = video.getAttribute('src') || video.src;
-            if (src && !src.startsWith('blob:')) {
-              urls.push({ url: src, type: 'highlight-video' });
-            }
-            
-            video.querySelectorAll('source').forEach(source => {
-              const sourceSrc = source.getAttribute('src') || source.src;
-              if (sourceSrc && !sourceSrc.startsWith('blob:')) {
-                urls.push({ url: sourceSrc, type: 'highlight-video' });
-              }
-            });
-          });
-          
-          // Check scripts for video URLs
-          const scripts = Array.from(document.querySelectorAll('script'));
-          scripts.forEach(script => {
-            const content = script.textContent || '';
-            // Look for video_url pattern
-            const videoMatches = content.match(/"video_url":"(https:\/\/[^"]+\.mp4[^"]*)"/g);
-            if (videoMatches) {
-              videoMatches.forEach(match => {
-                const url = match.match(/"video_url":"([^"]+)"/)[1];
-                if (url && !url.startsWith('blob:')) {
-                  urls.push({ url: url, type: 'highlight-video' });
-                }
-              });
-            }
-            
-            // Alternative pattern
-            const altMatches = content.match(/https:\/\/[^"'\s]+\.mp4[^"'\s]*/g);
-            if (altMatches) {
-              altMatches.forEach(url => {
-                if (!url.startsWith('blob:')) {
-                  urls.push({ url: url, type: 'highlight-video' });
-                }
-              });
-            }
-          });
-          
-          return urls;
-        });
-        
-        console.log(`    ✅ Found ${mediaUrls.length} items in this highlight`);
-        allHighlightUrls.push(...mediaUrls);
-      } catch (err) {
-        console.log(`    ⚠️  Could not extract from highlight: ${err.message}`);
-      }
-    }
-    
-    console.log(`✅ Total highlight items: ${allHighlightUrls.length}`);
-    return allHighlightUrls;
-  } catch (err) {
-    console.log('ℹ️  Error accessing highlights');
-    return [];
   }
 }
 
@@ -428,12 +158,36 @@ async function downloadMedia(mediaItems, username) {
   console.log(`✅ Successfully downloaded ${count} files!`);
 }
 
+// Scroll to load all posts
+async function scrollToLoadPosts(page) {
+  console.log('🔄 Scrolling to load all posts...');
+  let previousHeight = await page.evaluate(() => document.body.scrollHeight);
+  let scrollAttempts = 0;
+  
+  // Keep scrolling until we hit the bottom 3 times consecutively
+  while (scrollAttempts < 3) {
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    const newHeight = await page.evaluate(() => document.body.scrollHeight);
+    if (newHeight === previousHeight) {
+      scrollAttempts++;
+      console.log(`📜 Attempt ${scrollAttempts}/3 to load more...`);
+    } else {
+      scrollAttempts = 0;
+      console.log(`📜 Scrolled down, more posts loaded.`);
+    }
+    previousHeight = newHeight;
+  }
+  console.log('🛑 Reached end of posts.');
+}
+
 // Main function to download media from Instagram profile
 async function downloadInstagramMedia(profileUrl) {
   const usernameMatch = profileUrl.match(/instagram\.com\/([^\/]+)/);
   const username = usernameMatch ? usernameMatch[1].replace(/\/$/, '') : 'instagram_user';
 
-  console.log(`🚀 Starting media download for ${username}...`);
+  console.log(`🚀 Starting advanced media download for ${username}...`);
 
   const browser = await puppeteer.launch({
     headless: true, // Run in headless mode
@@ -454,10 +208,68 @@ async function downloadInstagramMedia(profileUrl) {
     console.log('✅ Cookies injected successfully!');
   }
 
+  // Set up network interception array
+  let interceptedMedia = [];
+
+  // Listen for responses
+  page.on('response', async (response) => {
+    try {
+      const url = response.url();
+      const resourceType = response.request().resourceType();
+      
+      // We only care about xhr/fetch requests that might contain GraphQL or API JSON
+      if (resourceType === 'xhr' || resourceType === 'fetch') {
+        if (url.includes('/graphql/query') || url.includes('/api/v1/')) {
+          const text = await response.text();
+          try {
+            const json = JSON.parse(text);
+            extractUrlsFromJson(json, interceptedMedia);
+          } catch(e) {
+            // Not a JSON response, ignore
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore errors related to incomplete or aborted responses
+    }
+  });
+
   console.log(`🧭 Loading profile: ${profileUrl}`);
-  await page.goto(profileUrl, { waitUntil: 'networkidle2' });
+  await page.goto(profileUrl, { waitUntil: 'networkidle2', timeout: 60000 });
   
-  // Check if we're logged in
+  // Extract from the initial page load's inline JSON (often stored in <script> tags)
+  console.log(`🧠 Parsing initial page state for media...`);
+  const inlineScripts = await page.evaluate(() => {
+    return Array.from(document.querySelectorAll('script'))
+      .map(script => script.textContent)
+      .filter(text => text && (text.includes('requireLazy') || text.includes('window.__initialDataLoaded') || text.includes('display_url')));
+  });
+
+  for (const scriptContent of inlineScripts) {
+    // Basic regex to find JSON-like blobs inside script tags
+    extractUrlsFromJson(scriptContent, interceptedMedia);
+    
+    // Also run a raw regex fallback on the script body to catch straggler URLs just in case
+    const displayMatches = scriptContent.match(/"display_url":"([^"]+)"/g);
+    if (displayMatches) {
+      displayMatches.forEach(m => {
+        try {
+          const url = JSON.parse('{' + m + '}').display_url;
+          interceptedMedia.push({ url, type: 'image' });
+        } catch(e){}
+      });
+    }
+    const videoMatches = scriptContent.match(/"video_url":"([^"]+)"/g);
+    if (videoMatches) {
+      videoMatches.forEach(m => {
+        try {
+          const url = JSON.parse('{' + m + '}').video_url;
+          interceptedMedia.push({ url, type: 'video' });
+        } catch(e){}
+      });
+    }
+  }
+
   const isLoggedIn = await page.evaluate(() => {
     return !document.querySelector('input[name="username"]');
   });
@@ -468,60 +280,40 @@ async function downloadInstagramMedia(profileUrl) {
     console.log('⚠️  Not authenticated - limited access to public posts only');
   }
 
-  // Scroll to load what we can
+  // Scroll completely to the bottom to trigger all GraphQL requests
   await scrollToLoadPosts(page);
 
-  // Extract post URLs
-  console.log('🔍 Extracting post URLs...');
-  const postUrls = await extractPostLinks(page);
-  console.log(`✅ Found ${postUrls.length} posts.`);
+  // Wait a few seconds for final requests to finish parsing
+  await new Promise(resolve => setTimeout(resolve, 3000));
 
-  if (postUrls.length === 0) {
-      console.log('❌ No posts found. This could be due to a private profile or an Instagram login wall.');
-      await browser.close();
-      return;
-  }
+  // Close browser after we're done scrolling and intercepting
+  await browser.close();
 
-  // Extract media from each post
-  console.log(`\n📦 Extracting media from ${postUrls.length} posts...\n`);
-  let allMediaItems = [];
-  let postCount = 0;
-  
-  for (const postUrl of postUrls) {
-    postCount++;
-    console.log(`[${postCount}/${postUrls.length}] Processing post...`);
-    const mediaItems = await extractMediaFromPost(page, postUrl);
-    allMediaItems.push(...mediaItems);
-  }
-
-  // Extract stories (if available)
-  const storyItems = await extractStories(page, username);
-  allMediaItems.push(...storyItems);
-
-  // Extract highlights (if available)
-  const highlightItems = await extractHighlights(page, username);
-  allMediaItems.push(...highlightItems);
+  // Process the intercepted media
+  console.log('🔍 Processing intercepted network payloads...');
 
   // Remove duplicates based on URL
   const uniqueMediaMap = new Map();
-  allMediaItems.forEach(item => {
-    const url = typeof item === 'string' ? item : item.url;
-    if (!uniqueMediaMap.has(url)) {
+  interceptedMedia.forEach(item => {
+    const url = item.url;
+    // Basic filtering to avoid junk data
+    if (url && typeof url === 'string' && url.startsWith('http') && !url.includes('logging') && !url.includes('graphql')) {
       uniqueMediaMap.set(url, item);
     }
   });
+  
   let uniqueMediaItems = Array.from(uniqueMediaMap.values());
   
   // Filter out low-resolution images
   const beforeFilter = uniqueMediaItems.length;
   uniqueMediaItems = uniqueMediaItems.filter(item => {
-    const url = typeof item === 'string' ? item : item.url;
+    const url = item.url;
     const filtered = filterHighResUrls([url]);
     return filtered.length > 0;
   });
   
-  console.log(`\n🔧 Filtered ${beforeFilter - uniqueMediaItems.length} low-resolution images`);
-  console.log(`✅ Found a total of ${uniqueMediaItems.length} high-quality media files.\n`);
+  console.log(`🔧 Filtered ${beforeFilter - uniqueMediaItems.length} low-resolution images/thumbnails`);
+  console.log(`✅ Extracted a total of ${uniqueMediaItems.length} high-quality media files directly from Instagram API.\n`);
 
   // Download all media into ZIP file
   if (uniqueMediaItems.length > 0) {
@@ -531,8 +323,6 @@ async function downloadInstagramMedia(profileUrl) {
     console.log('❌ No media found to download.');
   }
 
-  // Close the browser
-  await browser.close();
   console.log('🏁 Download completed!');
 }
 
