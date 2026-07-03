@@ -6,20 +6,20 @@ A powerful, headless Instagram profile media downloader that downloads **all pos
 
 - 🚀 **Fully Automated** - No manual browser interaction required
 - 🍪 **Cookie-Based Authentication** - Bypass login walls and access all content
+- 📡 **Advanced Network Interception** - Directly intercepts Instagram's GraphQL and API JSON responses for 100% extraction accuracy
 - 📦 **ZIP File Output** - All media organized in one file
-- 🎯 **High-Quality Media** - Automatically filters out low-resolution images
+- 🎯 **High-Quality Media** - Automatically grabs original-quality source URLs directly from the API
 - 🔒 **Read-Only & Safe** - Never modifies your Instagram account
 - 💻 **Headless Operation** - Runs completely in terminal
-- 🎨 **Clean Output** - Beautiful emoji-based progress indicators
 - 📊 **Detailed Progress** - Real-time download statistics
 
 ### Supported Media Types
 
 ✅ Posts (single images)  
-✅ Carousel posts (multiple images)  
+✅ Carousel posts (perfectly extracts all nested images/videos)  
 ✅ Reels (videos)  
 ✅ Videos  
-✅ High-resolution images (from srcset)
+✅ High-resolution original media directly from backend responses
 
 ## 📋 Prerequisites
 
@@ -295,25 +295,23 @@ ig/
    - Normalizes cookie format for Puppeteer
    - Injects cookies into browser session
 
-2. **Profile Loading:**
+2. **Network Interception:**
    - Launches headless Chrome browser
+   - Injects network listeners (`page.on('response')`) to silently capture Instagram's internal GraphQL and REST API payloads.
+
+3. **Profile Loading & Scrolling:**
    - Navigates to Instagram profile
-   - Verifies authentication status
+   - Dynamically scrolls the profile until all posts are loaded
+   - Intercepts the backend JSON responses as they are requested
 
-3. **Post Discovery:**
-   - Scrolls page to load all posts
-   - Extracts all post/reel URLs
-   - Removes duplicates
+4. **Deep Data Extraction:**
+   - Recursively parses the intercepted JSON for `display_url` and `video_url`
+   - Immediately captures all high-res photos and videos from all carousels, without needing to click them
 
-4. **Media Extraction:**
-   - Visits each post individually
-   - Extracts all image and video URLs
-   - Prioritizes high-resolution versions (srcset)
-
-5. **Filtering:**
-   - Removes low-resolution thumbnails
+5. **Filtering & Optimization:**
+   - Removes duplicates and low-resolution thumbnails
    - Filters out profile pictures
-   - Keeps only high-quality media
+   - Keeps only 100% original-quality media
 
 6. **Download & Packaging:**
    - Downloads each media file
@@ -346,7 +344,7 @@ MIT License - Use freely for personal projects!
 ## 🙋 FAQ
 
 **Q: Can I download stories and highlights?**  
-A: Currently, the script focuses on posts and reels. Story/highlight support may be added in future updates.
+A: The script currently strictly targets posts, carousels, and reels from the main feed via GraphQL interception. Dedicated extraction for disappearing stories/highlights will require navigating to those specific URLs.
 
 **Q: Does this work for private profiles?**  
 A: Yes! If you follow the private account (using the account whose cookies you exported), you can download their content.
@@ -367,7 +365,7 @@ A: The script handles all valid Instagram usernames including dots, underscores,
 
 **Made with ❤️ for easy Instagram backups**
 
-*Last updated: October 19, 2025*
+*Last updated: July 03, 2026*
 
 
 <!-- npx puppeteer browsers install chrome -->
