@@ -18,10 +18,46 @@
         <header>
             <h1>InstaScrape <span class="badge">Pro</span></h1>
             <p>Advanced Headless Media Downloader</p>
-            <button id="settingsBtn" class="settings-btn" title="Configuration">⚙️ Settings</button>
+            <div class="header-actions">
+                <button id="infoBtn" class="settings-btn" title="Information">ℹ️ Info</button>
+                <button id="settingsBtn" class="settings-btn" title="Configuration">⚙️ Settings</button>
+            </div>
         </header>
 
         <main>
+            <!-- Modal Overlay for Info -->
+            <div id="infoModal" class="modal-overlay hidden">
+                <div class="glass-card modal info-section">
+                    <div class="modal-header">
+                        <h2>How It Works</h2>
+                        <button id="closeInfoBtn" class="close-btn">&times;</button>
+                    </div>
+                    <div class="info-content">
+                        <p><strong>InstaScrape Pro</strong> is an advanced, fully automated Instagram profile downloader.</p>
+                        
+                        <h3>✨ What It Does</h3>
+                        <ul>
+                            <li>Downloads <strong>all</strong> posts, reels, and videos from any profile.</li>
+                            <li>Perfectly extracts every single image inside <strong>Carousels</strong>.</li>
+                            <li>Automatically fetches the highest-resolution, original-quality media.</li>
+                            <li>Packages everything into a neat ZIP file for easy backup.</li>
+                        </ul>
+
+                        <h3>📡 How It Does It</h3>
+                        <p>Unlike basic scrapers that try to click buttons on the screen, this tool uses <strong>Advanced Network Interception</strong>. It runs a hidden Chrome browser under the hood and silently captures the raw GraphQL and REST API data that Instagram's backend naturally sends. This guarantees 100% extraction accuracy without being blocked by UI updates.</p>
+                        
+                        <h3>🔒 Privacy & Security</h3>
+                        <p>Your cookies and data never leave your local machine. This tool is read-only and safe to use.</p>
+
+                        <div class="github-link-container">
+                            <a href="https://github.com/prayingforthelastsunbeam/Instagram-Profile-Downloader" target="_blank" class="github-link">
+                                ⭐ Star on GitHub
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Modal Overlay for Settings -->
             <div id="settingsModal" class="modal-overlay hidden">
                 <div class="glass-card modal config-section">

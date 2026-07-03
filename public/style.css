@@ -86,6 +86,12 @@ header p {
     margin-bottom: 20px;
 }
 
+.header-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
 .settings-btn {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--glass-border);
@@ -155,6 +161,56 @@ h2 {
     font-size: 0.9rem;
     color: var(--text-secondary);
     margin-bottom: 16px;
+}
+
+/* Info Section Content */
+.info-content {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.info-content strong {
+    color: var(--text-primary);
+}
+
+.info-content h3 {
+    color: var(--text-primary);
+    margin: 20px 0 10px 0;
+    font-size: 1.1rem;
+}
+
+.info-content ul {
+    padding-left: 20px;
+    margin-bottom: 15px;
+}
+
+.info-content ul li {
+    margin-bottom: 8px;
+}
+
+.github-link-container {
+    margin-top: 30px;
+    text-align: center;
+}
+
+.github-link {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    padding: 10px 24px;
+    border-radius: 20px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.github-link:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: var(--text-primary);
+    box-shadow: 0 4px 15px rgba(255,255,255,0.1);
+    transform: translateY(-2px);
 }
 
 .close-btn {

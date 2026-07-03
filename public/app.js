@@ -8,6 +8,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeSettingsBtn = document.getElementById('closeSettingsBtn');
     const settingsModal = document.getElementById('settingsModal');
     
+    const infoBtn = document.getElementById('infoBtn');
+    const closeInfoBtn = document.getElementById('closeInfoBtn');
+    const infoModal = document.getElementById('infoModal');
+    
     const progressSection = document.getElementById('progressSection');
     const consoleOutput = document.getElementById('consoleOutput');
     const resultSection = document.getElementById('resultSection');
@@ -65,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gallerySection.classList.remove('hidden');
     }
 
-    // Modal Listeners
+    // Settings Modal Listeners
     settingsBtn.addEventListener('click', () => {
         settingsModal.classList.remove('hidden');
     });
@@ -74,10 +78,22 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsModal.classList.add('hidden');
     });
     
-    // Close modal when clicking outside
-    settingsModal.addEventListener('click', (e) => {
+    // Info Modal Listeners
+    infoBtn.addEventListener('click', () => {
+        infoModal.classList.remove('hidden');
+    });
+
+    closeInfoBtn.addEventListener('click', () => {
+        infoModal.classList.add('hidden');
+    });
+
+    // Close modals when clicking outside
+    document.addEventListener('click', (e) => {
         if (e.target === settingsModal) {
             settingsModal.classList.add('hidden');
+        }
+        if (e.target === infoModal) {
+            infoModal.classList.add('hidden');
         }
     });
 
