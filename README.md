@@ -368,3 +368,6 @@ A: The script handles all valid Instagram usernames including dots, underscores,
 **Made with ❤️ for easy Instagram backups**
 
 *Last updated: October 19, 2025*
+
+
+<!-- npx puppeteer browsers install chrome -->
