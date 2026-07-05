@@ -190,7 +190,8 @@ async function downloadInstagramMedia(profileUrl) {
   console.log(`🚀 Starting advanced media download for ${username}...`);
 
   const browser = await puppeteer.launch({
-    headless: true, // Run in headless mode
+    headless: true,
+    executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--lang=en-US'],
     defaultViewport: { width: 1280, height: 800 }
   });
