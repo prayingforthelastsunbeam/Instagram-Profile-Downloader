@@ -362,7 +362,9 @@ async function downloadInstagramMedia(profileUrl) {
   }
 
   const isLoggedIn = await page.evaluate(() => {
-    return !document.querySelector('input[name="username"]');
+    const hasLoginInput = document.querySelector('input[name="username"]') || document.querySelector('input[name="email"]');
+    const isLoginUrl = window.location.href.includes('/accounts/login') || window.location.href.includes('/challenge');
+    return !(hasLoginInput || isLoginUrl);
   });
   
   if (isLoggedIn) {
