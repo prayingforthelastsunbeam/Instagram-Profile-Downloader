@@ -33,17 +33,23 @@ function loadCookies(cookieFile = 'cookie.json') {
           path: cookie.path || '/',
           expires: cookie.expirationDate || -1,
           httpOnly: cookie.httpOnly || false,
-          secure: cookie.secure || false
+          secure: cookie.secure !== undefined ? cookie.secure : true
         };
-        
+
         if (cookie.sameSite) {
           const sameSite = cookie.sameSite.toLowerCase();
           if (sameSite === 'no_restriction') normalized.sameSite = 'None';
           else if (sameSite === 'lax') normalized.sameSite = 'Lax';
           else if (sameSite === 'strict') normalized.sameSite = 'Strict';
-          else normalized.sameSite = 'Lax'; 
+          else normalized.sameSite = 'Lax';
         }
         return normalized;
+      }).filter(cookie => {
+        // Only keep cookies for instagram domains
+        return cookie.domain && (
+          cookie.domain.includes('instagram.com') ||
+          cookie.domain.includes('.instagram.com')
+        );
       });
       
       console.log(`✅ Loaded ${normalizedCookies.length} cookies from ${cookieFile}`);
@@ -60,56 +66,83 @@ function loadCookies(cookieFile = 'cookie.json') {
 // Filter out low-resolution images and unwanted URLs
 function filterHighResUrls(urls) {
   const lowResPatterns = [
-    /p\d+x\d+/i,      // e.g. p240x240
+    /p\d+x\d+/i,
     /thumb/i,
     /small/i,
     /lowres/i,
     /thumbnail/i,
-    /s\d+x\d+/i,      // e.g. s150x150
+    /s\d+x\d+/i,
     /avatar/i,
     /profile_pic/i,
     /150x150/i,
-    /320x320/i
+    /320x320/i,
+    /100x100/i,
+    /240x240/i,
+    /480x480/i,
+    /t51\.2885/i,
+    /t51\.2930/i,
+    /t01\.\w+\/e\d/i
   ];
   return urls.filter(url => !lowResPatterns.some(pattern => pattern.test(url)));
 }
 
 // Recursively find all media URLs in a JSON object
-function extractUrlsFromJson(obj, urlsArray) {
-  if (!obj) return;
+function extractUrlsFromJson(obj, urlsArray, depth) {
+  if (!obj || depth > 15) return;
   if (typeof obj === 'string') {
     try {
       if (obj.trim().startsWith('{') || obj.trim().startsWith('[')) {
         const parsed = JSON.parse(obj);
-        extractUrlsFromJson(parsed, urlsArray);
+        extractUrlsFromJson(parsed, urlsArray, (depth || 0) + 1);
       }
     } catch(e) {}
     return;
   }
-  
+
   if (Array.isArray(obj)) {
-    obj.forEach(item => extractUrlsFromJson(item, urlsArray));
+    obj.forEach(item => extractUrlsFromJson(item, urlsArray, (depth || 0) + 1));
     return;
   }
-  
+
   if (typeof obj === 'object') {
     if (obj.display_url) urlsArray.push({ url: obj.display_url, type: 'image' });
     if (obj.video_url) urlsArray.push({ url: obj.video_url, type: 'video' });
-    
+
     // image_versions2 is used in many API endpoints
     if (obj.image_versions2 && obj.image_versions2.candidates) {
-      const best = obj.image_versions2.candidates[0]; // usually the highest resolution
+      const sorted = obj.image_versions2.candidates.sort((a, b) => (b.width || 0) - (a.width || 0));
+      const best = sorted[0];
       if (best && best.url) urlsArray.push({ url: best.url, type: 'image' });
     }
-    
+
     // video_versions
     if (obj.video_versions && Array.isArray(obj.video_versions)) {
-      const best = obj.video_versions[0];
+      const sorted = obj.video_versions.sort((a, b) => (b.width || 0) - (a.width || 0));
+      const best = sorted[0];
       if (best && best.url) urlsArray.push({ url: best.url, type: 'video' });
     }
 
+    // Instagram GraphQL edge pattern (node.media_url, node.thumbnail_src)
+    if (obj.node && obj.node.media_url) {
+      urlsArray.push({ url: obj.node.media_url, type: obj.node.is_video ? 'video' : 'image' });
+    }
+    if (obj.node && obj.node.video_url) {
+      urlsArray.push({ url: obj.node.video_url, type: 'video' });
+    }
+
+    // Another GraphQL pattern
+    if (obj.media_url) {
+      urlsArray.push({ url: obj.media_url, type: obj.is_video ? 'video' : 'image' });
+    }
+
+    // Carousel / sidecar items
+    if (obj.__typename === 'GraphVideo' || obj.__typename === 'InstagramVideo' || obj.__typename === 'Video') {
+      if (obj.video_url) urlsArray.push({ url: obj.video_url, type: 'video' });
+      if (obj.display_url) urlsArray.push({ url: obj.display_url, type: 'image' });
+    }
+
     for (let key in obj) {
-      extractUrlsFromJson(obj[key], urlsArray);
+      extractUrlsFromJson(obj[key], urlsArray, (depth || 0) + 1);
     }
   }
 }
@@ -198,8 +231,8 @@ async function downloadInstagramMedia(profileUrl) {
 
   const page = await browser.newPage();
   
-  // Set a realistic user agent
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+  // Set a realistic, modern user agent
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36');
 
   // Load and inject cookies for authentication
   const cookies = loadCookies('cookie.json');
@@ -212,21 +245,53 @@ async function downloadInstagramMedia(profileUrl) {
   // Set up network interception array
   let interceptedMedia = [];
 
-  // Listen for responses
+  // Listen for responses - broadened to catch all Instagram API patterns
   page.on('response', async (response) => {
     try {
       const url = response.url();
       const resourceType = response.request().resourceType();
-      
-      // We only care about xhr/fetch requests that might contain GraphQL or API JSON
+
       if (resourceType === 'xhr' || resourceType === 'fetch') {
-        if (url.includes('/graphql/query') || url.includes('/api/v1/')) {
-          const text = await response.text();
-          try {
-            const json = JSON.parse(text);
-            extractUrlsFromJson(json, interceptedMedia);
-          } catch(e) {
-            // Not a JSON response, ignore
+        const isApiEndpoint =
+          url.includes('/graphql/query') ||
+          url.includes('/api/v1/') ||
+          url.includes('instagram.com/api') ||
+          url.includes('edge_owner_to_timeline_media') ||
+          url.includes('media') && url.includes('graphql') ||
+          url.includes('/web/');
+
+        if (isApiEndpoint) {
+          const contentType = response.headers()['content-type'] || '';
+          if (contentType.includes('json') || contentType.includes('text')) {
+            const text = await response.text();
+            try {
+              const json = JSON.parse(text);
+              const before = interceptedMedia.length;
+              extractUrlsFromJson(json, interceptedMedia, 0);
+              if (interceptedMedia.length > before) {
+                console.log(`  🔗 Intercepted ${interceptedMedia.length - before} media items from API`);
+              }
+            } catch(e) {
+              // Not JSON, try regex fallback on raw response
+              const displayMatches = text.match(/"display_url":"([^"]+)"/g);
+              if (displayMatches) {
+                displayMatches.forEach(m => {
+                  try {
+                    const url = JSON.parse('{' + m + '}').display_url;
+                    interceptedMedia.push({ url, type: 'image' });
+                  } catch(e){}
+                });
+              }
+              const videoMatches = text.match(/"video_url":"([^"]+)"/g);
+              if (videoMatches) {
+                videoMatches.forEach(m => {
+                  try {
+                    const url = JSON.parse('{' + m + '}').video_url;
+                    interceptedMedia.push({ url, type: 'video' });
+                  } catch(e){}
+                });
+              }
+            }
           }
         }
       }
@@ -240,32 +305,57 @@ async function downloadInstagramMedia(profileUrl) {
   
   // Extract from the initial page load's inline JSON (often stored in <script> tags)
   console.log(`🧠 Parsing initial page state for media...`);
+
+  // Modern Instagram embeds data in various script patterns
   const inlineScripts = await page.evaluate(() => {
     return Array.from(document.querySelectorAll('script'))
       .map(script => script.textContent)
-      .filter(text => text && (text.includes('requireLazy') || text.includes('window.__initialDataLoaded') || text.includes('display_url')));
+      .filter(text => text && (
+        text.includes('requireLazy') ||
+        text.includes('window.__initialDataLoaded') ||
+        text.includes('window.__additionalDataLoaded') ||
+        text.includes('display_url') ||
+        text.includes('video_url') ||
+        text.includes('edge_owner_to_timeline_media') ||
+        text.includes('__d("FeedPage")') ||
+        text.includes('"media_url"') ||
+        text.includes('media_url') ||
+        text.includes('shortcode_media')
+      ));
   });
 
+  console.log(`  📄 Found ${inlineScripts.length} relevant script tags`);
+
   for (const scriptContent of inlineScripts) {
-    // Basic regex to find JSON-like blobs inside script tags
-    extractUrlsFromJson(scriptContent, interceptedMedia);
-    
-    // Also run a raw regex fallback on the script body to catch straggler URLs just in case
-    const displayMatches = scriptContent.match(/"display_url":"([^"]+)"/g);
+    // Extract JSON objects embedded in the script
+    extractUrlsFromJson(scriptContent, interceptedMedia, 0);
+
+    // Regex fallbacks for URLs that might not be in parseable JSON
+    const displayMatches = scriptContent.match(/"display_url"\s*:\s*"([^"]+)"/g);
     if (displayMatches) {
       displayMatches.forEach(m => {
         try {
           const url = JSON.parse('{' + m + '}').display_url;
-          interceptedMedia.push({ url, type: 'image' });
+          if (url.startsWith('http')) interceptedMedia.push({ url, type: 'image' });
         } catch(e){}
       });
     }
-    const videoMatches = scriptContent.match(/"video_url":"([^"]+)"/g);
+    const videoMatches = scriptContent.match(/"video_url"\s*:\s*"([^"]+)"/g);
     if (videoMatches) {
       videoMatches.forEach(m => {
         try {
           const url = JSON.parse('{' + m + '}').video_url;
-          interceptedMedia.push({ url, type: 'video' });
+          if (url.startsWith('http')) interceptedMedia.push({ url, type: 'video' });
+        } catch(e){}
+      });
+    }
+    // media_url pattern used by newer Instagram API
+    const mediaUrlMatches = scriptContent.match(/"media_url"\s*:\s*"([^"]+)"/g);
+    if (mediaUrlMatches) {
+      mediaUrlMatches.forEach(m => {
+        try {
+          const url = JSON.parse('{' + m + '}').media_url;
+          if (url.startsWith('http')) interceptedMedia.push({ url, type: 'image' });
         } catch(e){}
       });
     }
@@ -284,27 +374,53 @@ async function downloadInstagramMedia(profileUrl) {
   // Scroll completely to the bottom to trigger all GraphQL requests
   await scrollToLoadPosts(page);
 
-  // Wait a few seconds for final requests to finish parsing
-  await new Promise(resolve => setTimeout(resolve, 3000));
+  // Wait for final requests to finish parsing
+  console.log('⏳ Waiting for final API responses...');
+  await new Promise(resolve => setTimeout(resolve, 5000));
+
+  // Final extraction: scrape any media URLs visible in the DOM
+  console.log('🖼️  Extracting media URLs from rendered DOM...');
+  const domMedia = await page.evaluate(() => {
+    const results = [];
+    // Look for <img> tags with src containing cdninstagram
+    document.querySelectorAll('img[src*="cdninstagram"], img[src*="fbcdn"]').forEach(img => {
+      if (img.src && img.naturalWidth > 100) {
+        results.push({ url: img.src, type: 'image' });
+      }
+    });
+    // Look for <video> tags
+    document.querySelectorAll('video source[src*="cdninstagram"], video source[src*="fbcdn"]').forEach(source => {
+      results.push({ url: source.src, type: 'video' });
+    });
+    document.querySelectorAll('video[src*="cdninstagram"], video[src*="fbcdn"]').forEach(video => {
+      results.push({ url: video.src, type: 'video' });
+    });
+    return results;
+  });
+  if (domMedia.length > 0) {
+    console.log(`  🖼️  Found ${domMedia.length} media elements in DOM`);
+    interceptedMedia.push(...domMedia);
+  }
 
   // Close browser after we're done scrolling and intercepting
   await browser.close();
 
   // Process the intercepted media
   console.log('🔍 Processing intercepted network payloads...');
+  console.log(`  📦 Raw intercepted items: ${interceptedMedia.length}`);
 
   // Remove duplicates based on URL
   const uniqueMediaMap = new Map();
   interceptedMedia.forEach(item => {
     const url = item.url;
-    // Basic filtering to avoid junk data
-    if (url && typeof url === 'string' && url.startsWith('http') && !url.includes('logging') && !url.includes('graphql')) {
+    if (url && typeof url === 'string' && url.startsWith('http') && !url.includes('logging')) {
       uniqueMediaMap.set(url, item);
     }
   });
-  
+
   let uniqueMediaItems = Array.from(uniqueMediaMap.values());
-  
+  console.log(`  📦 After dedup: ${uniqueMediaItems.length}`);
+
   // Filter out low-resolution images
   const beforeFilter = uniqueMediaItems.length;
   uniqueMediaItems = uniqueMediaItems.filter(item => {
@@ -312,7 +428,7 @@ async function downloadInstagramMedia(profileUrl) {
     const filtered = filterHighResUrls([url]);
     return filtered.length > 0;
   });
-  
+
   console.log(`🔧 Filtered ${beforeFilter - uniqueMediaItems.length} low-resolution images/thumbnails`);
   console.log(`✅ Extracted a total of ${uniqueMediaItems.length} high-quality media files directly from Instagram API.\n`);
 
