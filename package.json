@@ -1,6 +1,8 @@
 {
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "instagram": "node index.js",
+    "facebook": "node facebook.js"
   },
   "dependencies": {
     "axios": "^1.12.2",
