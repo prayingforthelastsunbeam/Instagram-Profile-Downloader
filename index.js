@@ -3,6 +3,7 @@ const path = require('path');
 const puppeteer = require('puppeteer');
 const JSZip = require('jszip');
 const readline = require('readline');
+const { getBrowserExecutablePath } = require('./browserHelper');
 
 // Ask user for input (URL)
 function askQuestion(query) {
@@ -222,12 +223,18 @@ async function downloadInstagramMedia(profileUrl) {
 
   console.log(`🚀 Starting advanced media download for ${username}...`);
 
-  const browser = await puppeteer.launch({
+  const launchOptions = {
     headless: true,
-    executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--lang=en-US'],
     defaultViewport: { width: 1280, height: 800 }
-  });
+  };
+  const execPath = getBrowserExecutablePath();
+  if (execPath) {
+    launchOptions.executablePath = execPath;
+    console.log(`🌐 Using browser: ${execPath}`);
+  }
+
+  const browser = await puppeteer.launch(launchOptions);
 
   const page = await browser.newPage();
   

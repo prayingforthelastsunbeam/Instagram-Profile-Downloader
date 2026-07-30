@@ -1,9 +1,11 @@
 const puppeteer = require('puppeteer');
+const { getBrowserExecutablePath } = require('./browserHelper');
 
 (async () => {
+  const execPath = getBrowserExecutablePath();
   const browser = await puppeteer.launch({
     headless: true,
-    executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    ...(execPath ? { executablePath: execPath } : {}),
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--lang=en-US'],
     defaultViewport: { width: 1280, height: 800 }
   });

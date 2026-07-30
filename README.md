@@ -1,371 +1,182 @@
-# 📸 Instagram Profile Downloader
+# 📸 Social Media Profile & Media Downloader
 
-A powerful, headless Instagram profile media downloader that downloads **all posts, reels, images, and videos** from any Instagram profile and packages them into a convenient ZIP file. Fully automated and runs entirely in your terminal!
+An advanced, automated **Instagram & Facebook profile media downloader** available as both an **Interactive Web Dashboard** and **Command-Line Interface (CLI)**.
 
-## ✨ Features
-
-- 🚀 **Fully Automated** - No manual browser interaction required
-- 🍪 **Cookie-Based Authentication** - Bypass login walls and access all content
-- 📡 **Advanced Network Interception** - Directly intercepts Instagram's GraphQL and API JSON responses for 100% extraction accuracy
-- 📦 **ZIP File Output** - All media organized in one file
-- 🎯 **High-Quality Media** - Automatically grabs original-quality source URLs directly from the API
-- 🔒 **Read-Only & Safe** - Never modifies your Instagram account
-- 💻 **Headless Operation** - Runs completely in terminal
-- 📊 **Detailed Progress** - Real-time download statistics
-
-### Supported Media Types
-
-✅ Posts (single images)  
-✅ Carousel posts (perfectly extracts all nested images/videos)  
-✅ Reels (videos)  
-✅ Videos  
-✅ High-resolution original media directly from backend responses
-
-## 📋 Prerequisites
-
-- **Node.js** (v14 or higher) - [Download here](https://nodejs.org/)
-- **Instagram Account** - To generate cookies for authentication
-- **Modern Browser** - Chrome/Edge for cookie extraction (one-time setup)
-
-## 🚀 Installation
-
-### 1. Clone or Download this Project
-
-```bash
-cd C:\Users\YourName\Desktop
-git clone <your-repo-url>
-cd ig
-```
-
-Or simply create a folder and copy all files into it.
-
-### 2. Install Dependencies
-
-```bash
-npm install
-```
-
-This will install:
-- `puppeteer` - Browser automation
-- `jszip` - ZIP file creation
-- `axios` & `cheerio` - HTTP requests (optional)
-
-### 3. Extract Your Instagram Cookies
-
-**Important:** You need to extract cookies from your Instagram account to bypass login walls and access all posts.
-
-#### Method 1: Using Browser Extension (Recommended)
-
-1. **Install a Cookie Extension:**
-   - Chrome: [EditThisCookie](https://chrome.google.com/webstore/detail/editthiscookie/fngmhnnpilhplaeedifhccceomclgfbg)
-   - Firefox: [Cookie-Editor](https://addons.mozilla.org/en-US/firefox/addon/cookie-editor/)
-
-2. **Login to Instagram:**
-   - Open your browser and go to [instagram.com](https://www.instagram.com)
-   - Login with your credentials
-
-3. **Export Cookies:**
-   - Click the cookie extension icon
-   - Click "Export" or "Export as JSON"
-   - Save the file as `cookie.json` in your project folder
-
-#### Method 2: Using Browser DevTools (Manual)
-
-1. **Login to Instagram** in your browser
-2. Open **DevTools** (F12 or Right-click → Inspect)
-3. Go to **Application** tab → **Cookies** → `https://www.instagram.com`
-4. Manually copy these important cookies:
-   - `sessionid`
-   - `csrftoken`
-   - `ds_user_id`
-   - `datr`
-5. Create a `cookie.json` file with this format:
-
-```json
-[
-  {
-    "domain": ".instagram.com",
-    "name": "sessionid",
-    "value": "YOUR_SESSION_ID_HERE",
-    "path": "/",
-    "secure": true,
-    "httpOnly": true,
-    "sameSite": "no_restriction"
-  },
-  {
-    "domain": ".instagram.com",
-    "name": "csrftoken",
-    "value": "YOUR_CSRF_TOKEN_HERE",
-    "path": "/",
-    "secure": true,
-    "sameSite": "no_restriction"
-  }
-]
-```
-
-### 4. Verify Cookie File
-
-Make sure your `cookie.json` file is in the project root:
-
-```
-ig/
-├── cookie.json      ← Your cookies here
-├── index.js
-├── package.json
-└── README.md
-```
-
-## 🎯 Usage
-
-### Basic Usage
-
-1. **Run the Script:**
-
-```bash
-node index.js
-```
-
-2. **Enter Instagram Profile URL when prompted:**
-
-```
-🔗 Enter Instagram profile URL: https://www.instagram.com/username/
-```
-
-3. **Wait for Download to Complete:**
-
-The script will:
-- ✅ Load your cookies (authentication)
-- ✅ Scroll through all posts
-- ✅ Extract media from each post
-- ✅ Download high-quality files
-- ✅ Create a ZIP file: `username.zip`
-
-### Example Output
-
-```
-🚀 Starting media download for your_username...
-✅ Loaded 11 cookies from cookie.json
-🍪 Injecting cookies for authentication...
-✅ Cookies injected successfully!
-🧭 Loading profile: https://www.instagram.com/your_username/
-✅ Successfully authenticated with cookies!
-🔄 Scrolling to load all posts...
-📜 Scrolled 1 time(s).
-📜 Scrolled 2 time(s).
-📜 Scrolled 3 time(s).
-🛑 Reached end of posts.
-🔍 Extracting post URLs...
-✅ Found 19 posts.
-
-📦 Extracting media from 19 posts...
-
-[1/19] Processing post...
-📸 Visiting post: https://www.instagram.com/your_username/reel/DPjs4qqEmM6/
-  ✅ Found 14 media items in post
-[2/19] Processing post...
-📸 Visiting post: https://www.instagram.com/your_username/p/DPRU1t9kvCF/
-  ✅ Found 8 media items in post
-
-... (continues for all posts)
-
-🔧 Filtered 45 low-resolution images
-✅ Found a total of 127 high-quality media files.
-
-⬇️  [1/127] Downloading: https://...
-⬇️  [2/127] Downloading: https://...
-... (continues for all media)
-
-📦 Creating ZIP archive...
-✅ Backup saved to your_username.zip
-🏁 Download completed!
-```
-
-## 📁 Output Structure
-
-After successful download, you'll get:
-
-```
-username.zip
-├── username_001.jpg
-├── username_002.jpg
-├── username_003.mp4
-├── username_004.jpg
-└── ... (all media files)
-```
-
-Files are named sequentially: `username_001.jpg`, `username_002.mp4`, etc.
-
-## ⚙️ Configuration
-
-### Adjust Scrolling Behavior
-
-In `index.js`, modify the `scrollToLoadPosts` function:
-
-```javascript
-await scrollToLoadPosts(page, 20); // Max 20 scrolls (default)
-```
-
-Increase the number for profiles with many posts (100+):
-
-```javascript
-await scrollToLoadPosts(page, 50); // For large profiles
-```
-
-### Filter Settings
-
-Low-resolution patterns filtered by default:
-- Thumbnails (150x150, 320x320)
-- Profile pictures
-- Avatar images
-- Small preview images (s150x150, p240x240)
-
-To modify filters, edit the `filterHighResUrls` function in `index.js`.
-
-## 🔒 Security & Privacy
-
-### Is This Safe?
-
-**YES!** This tool is completely safe:
-
-✅ **Read-Only Access** - Only downloads media, never posts or modifies anything  
-✅ **No Account Actions** - Doesn't like, comment, follow, or unfollow  
-✅ **Local Execution** - All processing happens on your computer  
-✅ **Cookie Security** - Cookies stay on your machine, never uploaded anywhere  
-
-### Will Instagram Detect This?
-
-- The script uses a **headless browser** with realistic user agents
-- Includes **random delays** between requests to avoid rate limiting
-- Uses **cookie authentication** like a normal browser session
-- **Best Practice:** Don't download hundreds of profiles in a short time
-
-### Cookie Expiration
-
-Instagram cookies typically last 30-90 days. If downloads stop working:
-1. Re-export your cookies from the browser
-2. Replace the old `cookie.json` file
-3. Run the script again
-
-## 🛠️ Troubleshooting
-
-### "Protocol error: Invalid parameters sameSite"
-
-**Fixed!** The script now automatically converts cookie formats. If you still see this:
-- Make sure you're using the latest version of the script
-- The `loadCookies` function normalizes all sameSite values
-
-### "No posts found"
-
-Possible causes:
-1. **Private Profile** - You must follow the account first (while logged in with your cookies)
-2. **Expired Cookies** - Re-export fresh cookies from Instagram
-3. **Invalid URL** - Make sure URL is: `https://www.instagram.com/username/`
-
-### "Failed to download" errors
-
-- **Network issues** - Check your internet connection
-- **Rate limiting** - Wait a few minutes and try again
-- **Media deleted** - Some posts may have been removed
-
-### Browser Closes Too Quickly
-
-The script runs in headless mode (no browser window). To debug:
-
-Change in `index.js`:
-```javascript
-headless: true, // Change to false to see the browser
-```
-
-## 📝 File Structure
-
-```
-ig/
-├── cookie.json           # Your Instagram cookies (required)
-├── index.js             # Main script
-├── package.json         # Dependencies
-├── package-lock.json    # Dependency versions
-├── README.md            # This file
-└── node_modules/        # Installed packages
-```
-
-## 🔄 How It Works
-
-1. **Authentication:**
-   - Loads cookies from `cookie.json`
-   - Normalizes cookie format for Puppeteer
-   - Injects cookies into browser session
-
-2. **Network Interception:**
-   - Launches headless Chrome browser
-   - Injects network listeners (`page.on('response')`) to silently capture Instagram's internal GraphQL and REST API payloads.
-
-3. **Profile Loading & Scrolling:**
-   - Navigates to Instagram profile
-   - Dynamically scrolls the profile until all posts are loaded
-   - Intercepts the backend JSON responses as they are requested
-
-4. **Deep Data Extraction:**
-   - Recursively parses the intercepted JSON for `display_url` and `video_url`
-   - Immediately captures all high-res photos and videos from all carousels, without needing to click them
-
-5. **Filtering & Optimization:**
-   - Removes duplicates and low-resolution thumbnails
-   - Filters out profile pictures
-   - Keeps only 100% original-quality media
-
-6. **Download & Packaging:**
-   - Downloads each media file
-   - Names files sequentially
-   - Creates ZIP archive
-   - Saves as `username.zip`
-
-## 🤝 Contributing
-
-Found a bug or want to add features? Contributions are welcome!
-
-## ⚠️ Disclaimer
-
-This tool is for **personal use only**. Please respect Instagram's Terms of Service and copyright laws:
-
-- Only download content you have permission to download
-- Don't redistribute downloaded content without permission
-- Use responsibly and ethically
-
-**This tool does NOT:**
-- Violate Instagram's API
-- Store or share your cookies
-- Modify your Instagram account
-- Download from accounts you don't have access to
-
-## 📄 License
-
-MIT License - Use freely for personal projects!
-
-## 🙋 FAQ
-
-**Q: Can I download stories and highlights?**  
-A: The script currently strictly targets posts, carousels, and reels from the main feed via GraphQL interception. Dedicated extraction for disappearing stories/highlights will require navigating to those specific URLs.
-
-**Q: Does this work for private profiles?**  
-A: Yes! If you follow the private account (using the account whose cookies you exported), you can download their content.
-
-**Q: How many profiles can I download?**  
-A: Unlimited! But be respectful - don't spam requests or Instagram may temporarily limit your account.
-
-**Q: Will this work on Mac/Linux?**  
-A: Yes! Node.js and Puppeteer work cross-platform. Just adjust file paths if needed.
-
-**Q: Can I run this on a server?**  
-A: Yes! Make sure the server has Chrome/Chromium installed for Puppeteer.
-
-**Q: What if the username has special characters?**  
-A: The script handles all valid Instagram usernames including dots, underscores, and numbers (e.g., `user.name_123`).
+It intercepts GraphQL/API responses directly from headless browser sessions to extract high-resolution photos, carousels, reels, and videos, packaging them into convenient ZIP archives.
 
 ---
 
-**Made with ❤️ for easy Instagram backups**
+## ✨ Features
 
-*Last updated: July 03, 2026*
+- 🌐 **Web Dashboard & REST API** – Modern web interface with real-time progress streaming (Server-Sent Events) and instant media preview gallery.
+- 💻 **Terminal CLI Tools** – Standalone command-line scrapers for Instagram and Facebook.
+- 🦁 **Smart Multi-Browser Auto-Detection** – Out-of-the-box support for **Brave Browser**, **Google Chrome**, **Microsoft Edge**, and bundled **Puppeteer Chromium**.
+- 📡 **Advanced Network Interception** – Intercepts native GraphQL & REST API responses for 100% extraction accuracy and maximum resolution.
+- 🍪 **Cookie Authentication** – Easily bypass login walls for private profiles and full-profile pagination using `cookie.json` and `fb_cookie.json`.
+- 🎠 **Full Carousel & Reel Extraction** – Captures nested multi-slide posts, reels, and videos automatically.
+- 📦 **Automated ZIP Bundling** – Automatically compresses media into organized ZIP archives with sequential file naming.
+- 🔒 **Read-Only & Secure** – Runs locally without liking, commenting, or making account modifications.
 
+---
 
-<!-- npx puppeteer browsers install chrome -->
+## 📸 Supported Platforms & Media Types
+
+| Platform | Posts | Carousels | Reels / Videos | Private Accounts (with cookies) |
+| :--- | :---: | :---: | :---: | :---: |
+| **Instagram** | ✅ | ✅ | ✅ | ✅ |
+| **Facebook** | ✅ | ✅ | ✅ | ✅ |
+
+---
+
+## 🛠️ Browser Compatibility
+
+The downloader automatically detects installed Chromium browsers on Windows, macOS, and Linux:
+
+- 🦁 **Brave Browser** (`brave.exe`)
+- 🌐 **Google Chrome** (`chrome.exe`)
+- 🔷 **Microsoft Edge** (`msedge.exe`)
+- 📦 **Puppeteer Bundled Chromium** (Fallback)
+
+> **Custom Path Support:** You can set a custom browser path using the environment variable `BROWSER_PATH`:
+> ```bash
+> process.env.BROWSER_PATH="C:\\Path\\To\\browser.exe" node index.js
+> ```
+
+---
+
+## 📋 Prerequisites
+
+- **Node.js** (v16 or higher) – [Download Node.js](https://nodejs.org/)
+- **Brave, Chrome, or Edge** installed on your system.
+
+---
+
+## 🚀 Installation & Setup
+
+1. **Clone or Download the Repository:**
+   ```bash
+   git clone https://github.com/prayingforthelastsunbeam/Instagram-Profile-Downloader.git
+   cd Instagram-Profile-Downloader
+   ```
+
+2. **Install Dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Set Up Authentication Cookies (Recommended):**
+
+   Export cookies from your browser using an extension like **Cookie-Editor** or **EditThisCookie**:
+
+   - **For Instagram:** Save exported JSON cookies as `cookie.json` in the root directory.
+   - **For Facebook:** Save exported JSON cookies as `fb_cookie.json` in the root directory.
+
+---
+
+## 🎯 How to Use
+
+### Method 1: Web Dashboard (Recommended)
+
+1. Start the web server:
+   ```bash
+   npm start
+   ```
+2. Open your browser and navigate to:
+   ```
+   http://localhost:3000
+   ```
+3. Enter the Instagram profile URL, paste your cookie JSON if prompted, and click **Start Download**. Watch the real-time progress and download the ZIP file directly when completed!
+
+---
+
+### Method 2: Instagram Downloader (CLI)
+
+1. Run the Instagram CLI downloader:
+   ```bash
+   npm run instagram
+   # or
+   node index.js
+   ```
+2. Paste the target profile URL:
+   ```
+   🔗 Enter Instagram profile URL: https://www.instagram.com/target_username/
+   ```
+3. The script will automatically load cookies, detect your browser, scroll the profile, download high-res media, and produce `target_username.zip`.
+
+---
+
+### Method 3: Facebook Downloader (CLI)
+
+1. Run the Facebook CLI downloader:
+   ```bash
+   npm run facebook
+   # or
+   node facebook.js
+   ```
+2. Paste the target Facebook page/profile URL when prompted.
+
+---
+
+## 📁 Project Architecture
+
+```
+Instagram-Profile-Downloader/
+├── browserHelper.js      # Smart auto-detector for Brave, Chrome, Edge
+├── index.js              # Instagram CLI profile downloader
+├── facebook.js           # Facebook CLI profile downloader
+├── scraper.js            # Core scraping & network interception engine
+├── server.js            # Express web server & SSE API endpoints
+├── public/               # Web application UI assets
+│   ├── index.html        # Dashboard interface
+│   ├── app.js            # Dashboard logic & SSE event receiver
+│   └── style.css         # Modern dark-mode styling
+├── cookie.json           # Instagram authentication cookies (optional)
+├── fb_cookie.json        # Facebook authentication cookies (optional)
+├── package.json          # Node.js configuration & npm scripts
+└── README.md             # Project documentation
+```
+
+---
+
+## ⚙️ Configuration & Customization
+
+### Adjusting Scroll Limit & Timeout
+To customize scrolling attempts or network timeouts for extra-large profiles, modify the scroll loop parameters in `index.js` or `scraper.js`:
+
+```javascript
+// Change scroll attempt thresholds or delay times in scroll loop
+while (scrollAttempts < 5) { ... }
+```
+
+### Filtering Low-Resolution Thumbnails
+`scraper.js` and `index.js` automatically filter out low-res thumbnails (`150x150`, profile avatars, previews). You can modify patterns in `filterHighResUrls`:
+
+```javascript
+const lowResPatterns = [ /thumb/i, /avatar/i, /150x150/i, /320x320/i ];
+```
+
+---
+
+## 🔒 Privacy & Safety
+
+- **100% Local Execution:** All network traffic and downloaded media remain entirely on your local machine.
+- **Non-Intrusive Scraping:** Operates in read-only mode without making likes, comments, or account mutations.
+- **Isolated Sessions:** Browsing automation runs in separate headless browser instances without altering your existing browser profiles or open tabs.
+
+---
+
+## 🛠️ Troubleshooting
+
+- **Browser Executable Not Found:**
+  - Make sure Brave, Chrome, or Edge is installed.
+  - Or set `BROWSER_PATH` environment variable pointing to your browser executable.
+- **Private Profile / No Media Found:**
+  - Verify that `cookie.json` is updated with active session cookies from an account following the target private profile.
+- **Rate Limit Warnings:**
+  - Add small delays between consecutive downloads if processing multiple profiles back-to-back.
+
+---
+
+## 📄 License
+
+Distributed under the **MIT License**. Free for personal and educational use.

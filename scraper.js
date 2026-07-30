@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer');
 const JSZip = require('jszip');
+const { getBrowserExecutablePath } = require('./browserHelper');
 
 // Filter out low-resolution images and unwanted URLs
 function filterHighResUrls(urls) {
@@ -149,11 +150,18 @@ async function scrapeInstagram(profileUrl, cookiesData, onProgress) {
 
   onProgress(`🚀 Starting advanced media download for ${username}...`);
 
-  const browser = await puppeteer.launch({
+  const launchOptions = {
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--lang=en-US'],
     defaultViewport: { width: 1280, height: 800 }
-  });
+  };
+  const execPath = getBrowserExecutablePath();
+  if (execPath) {
+    launchOptions.executablePath = execPath;
+    onProgress(`🌐 Using browser: ${execPath}`);
+  }
+
+  const browser = await puppeteer.launch(launchOptions);
 
   const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
